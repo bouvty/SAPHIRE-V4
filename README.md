@@ -1,29 +1,35 @@
 # Saphire V4
 
-Discord.py prefix bot and public FastAPI stock endpoint. Everything configured through environment variables, see .env.example.
+**Bot is self-hosted. Railway runs only the API and 5-minute stock synchronization.**
 
-## Commands
-- `;help`: dynamically lists commands
-- `;stock`: view stock in a black embed
-- `;stock panel`: create auto-editing stock panel (Manage Server permission required)
+New Supabase project: **SAPHIRE**, reference `igtoqirlldsdijyumucw`. The database table is `public.stock_members` (online_members, offline_members, updated_at).
 
-Discord renders buttons below embeds; buttons cannot physically be inserted inside embed content.
+## API routes
 
-## Install
-1. Apply `sql/001_member_stock.sql` in Supabase.
-2. Set `DATABASE_URL` to Supabase Postgres connection string and `DISCORD_TOKEN` to bot token in Railway secret variables; never commit .env.
-3. Enable Message Content Intent in Discord Developer Portal and invite bot with Send Messages, Embed Links and Read Message History.
-4. Run `pip install -r requirements.txt`.
-5. Start with `uvicorn saphire.main:app --host 0.0.0.0 --port 8000`.
-6. On Railway, start using `uvicorn saphire.main:app --host 0.0.0.0 --port $PORT`.
+- `GET https://api.saphire.rip/v4/` — service metadata.
+- `GET https://api.saphire.rip/v4/health` — API health.
+- `GET https://api.saphire.rip/v4/stock/members` — reads the most recent stock from Supabase; no API key.
 
-Railway runs the persistent bot, stock worker, and public API. To expose under Vercel, configure a rewrite from `/v4/api/:path*` to the Railway public hostname.
+## Railway
 
-## Public API
-GET `/v4/api/members/stock`: public, no authentication required. Returns online_members, offline_members, success, last_updated, next_refresh. Returns 503 until first successful sync.
+Set these environment variables on the V4 service:
 
-## Stock worker
-Every 300 seconds by default, fetches `https://176.100.37.219/api/v2/stock` over verified HTTPS, validates nonnegative integer values, and upserts a singleton record. Keeps last successful values if upstream fails. Only run one worker instance to avoid duplicate polling.
+```env
+DATABASE_URL=<new SAPHIRE Supabase Postgres connection string>
+ENABLE_DISCORD_BOT=false
+ENABLE_STOCK_SYNC=true
+STOCK_REFRESH_SECONDS=300
+STOCK_SOURCE_URL=https://176.100.37.219/api/v2/stock
+```
 
-## Logging
-Timestamped light blue INFO, light red ERROR and orange LOGGED levels, with ASCII banner and console clearing when bot becomes ready. On restart, persistent buttons remain active; previously posted auto-edit panels must be recreated for countdown updates.
+**Important:** A new Supabase project means the old project's DB URL no longer applies. Never commit the password or connection string to GitHub.
+
+Run `sql/001_member_stock.sql` only if the table does not already exist; it has been created in the new project.
+
+Railway fetches provider stock every 5 minutes, validates both counts, and upserts row id 1 in `stock_members`. The public API only reads the table. On invalid/unreachable source data, existing counts are retained.
+
+## Self-hosted Discord bot
+
+Run `python main.py` inside the provided bot ZIP, using its own `.env` containing `DISCORD_TOKEN` and `API_BASE_URL=https://api.saphire.rip/v4`. Enable Message Content Intent. Commands: `;help`, `;stock`, `;stock panel`.
+
+The self-hosted bot requires no Supabase credentials. Never put a Discord bot token in Railway.
