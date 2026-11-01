@@ -90,15 +90,15 @@ class SaphireBot(commands.Bot):
         next_edit = now + timedelta(seconds=60)
         if row and row["updated_at"]:
             stock_text = (
-                f"**Discord Members Online**\n{row['online_members']:,}\\n\\n"
-                f"**Discord Members Offline**\\n{row['offline_members']:,}"
+                f"**Discord Members Online**\n{row['online_members']:,}\n\n"
+                f"**Discord Members Offline**\n{row['offline_members']:,}"
             )
         else:
             stock_text = "Stock data pending first successful synchronization."
         description = (
-            f"{stock_text}\\n\\n"
-            f"**Last Edit**\\n<t:{int(now.timestamp())}:R>\\n\\n"
-            f"**Next Edit**\\n<t:{int(next_edit.timestamp())}:R>"
+            f"{stock_text}\n\n"
+            f"**Last Edit**\n<t:{int(now.timestamp())}:R>\n\n"
+            f"**Next Edit**\n<t:{int(next_edit.timestamp())}:R>"
         )
         embed = self.make_embed("Saphire Stock Panel", description)
         embed.set_footer(text="Saphire • Auto-updating stock")
@@ -109,7 +109,7 @@ class SaphireBot(commands.Bot):
             f"**{settings.discord_prefix}{command.name}** — {command.help or 'No description'}"
             for command in sorted(self.commands,key=lambda x:x.name) if not command.hidden
         ]
-        await ctx.send(embed=self.make_embed("Saphire Help Panel", "\\n".join(descriptions) or "No commands available."))
+        await ctx.send(embed=self.make_embed("Saphire Help Panel", "\n".join(descriptions) or "No commands available."))
 
     async def stock_command(self,ctx,action:str=""):
         if action.lower()=="panel":
