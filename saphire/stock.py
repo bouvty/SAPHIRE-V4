@@ -59,9 +59,5 @@ def countdown(seconds):
 def stock_payload(row):
     if not row:
         return {"success":False,"online_members":0,"offline_members":0}
-    updated=row["updated_at"]
-    next_update=datetime.fromtimestamp(updated.timestamp()+settings.stock_refresh_seconds,tz=timezone.utc) if updated else None
-    return {"success":updated is not None,"online_members":row["online_members"],
-            "offline_members":row["offline_members"],
-            "last_updated":updated.isoformat() if updated else None,
-            "next_refresh":next_update.isoformat() if next_update else None}
+    return {"success":row["updated_at"] is not None,"online_members":row["online_members"],
+            "offline_members":row["offline_members"]}
