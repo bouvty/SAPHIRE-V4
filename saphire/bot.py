@@ -85,28 +85,31 @@ class SaphireBot(commands.Bot):
         embed.set_author(name=author_name, icon_url=avatar)
         return embed
 
-    def make_stock_embed(self,row):
-        embed=self.make_embed("Saphire Stock Panel")
-        if not row or not row["updated_at"]:
-            embed.description="Waiting for the first stock sync."
-        else:
-            embed.add_field(name="Discord members online",value=f"**{row['online_members']:,}**",inline=False)
-            embed.add_field(name="Discord members offline",value=f"**{row['offline_members']:,}**",inline=False)
-        updated=row["updated_at"] if row else None
-        next_dt=updated+timedelta(seconds=settings.stock_refresh_seconds) if updated else None
-        remaining=(next_dt-datetime.now(timezone.utc)).total_seconds() if next_dt else 0
+    def make_stock_embed(self, row):
         now = datetime.now(timezone.utc)
-        embed.add_field(name="Last Edit",value=f"<t:{int(now.timestamp())}:R>",inline=True)
-        embed.add_field(name="Next Edit",value=f"<t:{int((now + timedelta(seconds=60)).timestamp())}:R>",inline=True)
+        next_edit = now + timedelta(seconds=60)
+        if row and row["updated_at"]:
+            stock_text = (
+                f"**Discord Members Online**\n{row['online_members']:,}\\n\\n"
+                f"**Discord Members Offline**\\n{row['offline_members']:,}"
+            )
+        else:
+            stock_text = "Stock data pending first successful synchronization."
+        description = (
+            f"{stock_text}\\n\\n"
+            f"**Last Edit**\\n<t:{int(now.timestamp())}:R>\\n\\n"
+            f"**Next Edit**\\n<t:{int(next_edit.timestamp())}:R>"
+        )
+        embed = self.make_embed("Saphire Stock Panel", description)
         embed.set_footer(text="Saphire • Auto-updating stock")
         return embed
 
     async def help_command(self,ctx):
-        embed=self.make_embed("Saphire Help Panel")
-        for command in sorted(self.commands,key=lambda x:x.name):
-            if not command.hidden:
-                embed.add_field(name=settings.discord_prefix+command.name,value=command.help or "No description",inline=False)
-        await ctx.send(embed=embed)
+        descriptions = [
+            f"**{settings.discord_prefix}{command.name}** — {command.help or 'No description'}"
+            for command in sorted(self.commands,key=lambda x:x.name) if not command.hidden
+        ]
+        await ctx.send(embed=self.make_embed("Saphire Help Panel", "\\n".join(descriptions) or "No commands available."))
 
     async def stock_command(self,ctx,action:str=""):
         if action.lower()=="panel":
