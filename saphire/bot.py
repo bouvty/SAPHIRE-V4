@@ -95,8 +95,9 @@ class SaphireBot(commands.Bot):
         updated=row["updated_at"] if row else None
         next_dt=updated+timedelta(seconds=settings.stock_refresh_seconds) if updated else None
         remaining=(next_dt-datetime.now(timezone.utc)).total_seconds() if next_dt else 0
-        embed.add_field(name="Last updated",value=(f"<t:{int(updated.timestamp())}:R> • <t:{int(updated.timestamp())}:T>" if updated else "Pending"),inline=True)
-        embed.add_field(name="Next refresh",value=(f"<t:{int(next_dt.timestamp())}:R> • <t:{int(next_dt.timestamp())}:T>" if next_dt else "Pending"),inline=True)
+        now = datetime.now(timezone.utc)
+        embed.add_field(name="Last Edit",value=f"<t:{int(now.timestamp())}:R>",inline=True)
+        embed.add_field(name="Next Edit",value=f"<t:{int((now + timedelta(seconds=60)).timestamp())}:R>",inline=True)
         embed.set_footer(text="Saphire • Auto-updating stock")
         return embed
 
@@ -127,15 +128,11 @@ class SaphireBot(commands.Bot):
             try:
                 row=await self.stock.get()
                 # Only edit on new database sync (or once after bot restart).
-                version = row["updated_at"] if row else None
                 for mid, channel_id in list(self.panels.items()):
-                    if self.panel_versions.get(mid) == version:
-                        continue
                     try:
                         channel = self.get_channel(channel_id) or await self.fetch_channel(channel_id)
                         msg = await channel.fetch_message(mid)
                         await msg.edit(embed=self.make_stock_embed(row), view=StockView(self))
-                        self.panel_versions[mid] = version
                         logged("Stock panel %s updated from Supabase", mid)
                     except discord.NotFound:
                         self.panels.pop(mid, None)
@@ -147,7 +144,7 @@ class SaphireBot(commands.Bot):
                         logging.warning("Panel update failed %s: %s", mid, exc)
             except Exception as exc:
                 logging.error("Panel update loop: %s",exc)
-            await asyncio.sleep(max(10,settings.panel_refresh_seconds))
+            await asyncio.sleep(60)
 
     async def close(self):
         if self.panel_task:
