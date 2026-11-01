@@ -13,17 +13,17 @@ class StockStore:
             raise RuntimeError("DATABASE_URL is required")
         self.pool = await asyncpg.create_pool(dsn=settings.database_url, min_size=1, max_size=4)
         async with self.pool.acquire() as c:
-            await c.fetchval("SELECT id FROM public.member_stock WHERE id=1")
+            await c.fetchval("SELECT id FROM public.stock_members WHERE id=1")
     async def close(self):
         if self.pool:
             await self.pool.close()
     async def get(self):
         async with self.pool.acquire() as c:
-            row = await c.fetchrow("SELECT online_members,offline_members,updated_at FROM public.member_stock WHERE id=1")
+            row = await c.fetchrow("SELECT online_members,offline_members,updated_at FROM public.stock_members WHERE id=1")
         return dict(row) if row else None
     async def save(self,online,offline):
         async with self.pool.acquire() as c:
-            return await c.execute("""INSERT INTO public.member_stock(id,online_members,offline_members,updated_at) VALUES(1,$1,$2,now())
+            return await c.execute("""INSERT INTO public.stock_members(id,online_members,offline_members,updated_at) VALUES(1,$1,$2,now())
                 ON CONFLICT(id) DO UPDATE SET online_members=excluded.online_members,
                 offline_members=excluded.offline_members,updated_at=excluded.updated_at""",online,offline)
 
