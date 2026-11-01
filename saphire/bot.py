@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import os
+import json
+from pathlib import Path
 from datetime import datetime,timezone,timedelta
 import discord
 from discord.ext import commands
@@ -35,7 +37,9 @@ class SaphireBot(commands.Bot):
         super().__init__(command_prefix=settings.discord_prefix,intents=intents,help_command=None,
             activity=discord.Streaming(name=settings.discord_stream_name,url=settings.discord_stream_url))
         self.stock=stock
-        self.panels={}
+        self.panel_file = Path(os.getenv('STOCK_PANELS_FILE', 'stock_panels.json'))
+        self.panels = self.load_panels()
+        self.panel_versions = {}
         self.panel_task=None
         self.banner_printed=False
         async def run_help(ctx):
@@ -44,6 +48,18 @@ class SaphireBot(commands.Bot):
             await self.stock_command(ctx, action)
         self.command(name="help", help="Automatically list all available commands")(run_help)
         self.command(name="stock", help="Display stock; use ;stock panel to post an auto-updating panel")(run_stock)
+
+    def load_panels(self):
+        try:
+            data = json.loads(self.panel_file.read_text(encoding='utf-8'))
+            return {int(k): int(v) for k, v in data.items()}
+        except (OSError, ValueError, TypeError):
+            return {}
+
+    def save_panels(self):
+        tmp = self.panel_file.with_suffix('.tmp')
+        tmp.write_text(json.dumps(self.panels), encoding='utf-8')
+        tmp.replace(self.panel_file)
 
     async def setup_hook(self):
         self.add_view(StockView(self))
@@ -91,7 +107,8 @@ class SaphireBot(commands.Bot):
                 await ctx.send(embed=discord.Embed(description="Manage Server permission required.",color=EMBED_COLOR))
                 return
             msg=await ctx.send(embed=self.make_stock_embed(await self.stock.get()),view=StockView(self))
-            self.panels[msg.id]=msg
+            self.panels[msg.id] = msg.channel.id
+            self.save_panels()
             logged("Stock panel posted by %s",ctx.author)
         elif not action:
             await ctx.send(embed=self.make_stock_embed(await self.stock.get()),view=StockView(self))
@@ -103,13 +120,25 @@ class SaphireBot(commands.Bot):
         while not self.is_closed():
             try:
                 row=await self.stock.get()
-                for mid,msg in list(self.panels.items()):
+                # Only edit on new database sync (or once after bot restart).
+                version = row["updated_at"] if row else None
+                for mid, channel_id in list(self.panels.items()):
+                    if self.panel_versions.get(mid) == version:
+                        continue
                     try:
-                        await msg.edit(embed=self.make_stock_embed(row),view=StockView(self))
-                    except (discord.Forbidden,discord.NotFound):
-                        self.panels.pop(mid,None)
+                        channel = self.get_channel(channel_id) or await self.fetch_channel(channel_id)
+                        msg = await channel.fetch_message(mid)
+                        await msg.edit(embed=self.make_stock_embed(row), view=StockView(self))
+                        self.panel_versions[mid] = version
+                        logged("Stock panel %s updated from Supabase", mid)
+                    except discord.NotFound:
+                        self.panels.pop(mid, None)
+                        self.panel_versions.pop(mid, None)
+                        self.save_panels()
+                    except discord.Forbidden:
+                        logging.warning("Cannot edit stock panel %s; check bot permissions", mid)
                     except discord.HTTPException as exc:
-                        logging.warning("Panel update failed %s: %s",mid,exc)
+                        logging.warning("Panel update failed %s: %s", mid, exc)
             except Exception as exc:
                 logging.error("Panel update loop: %s",exc)
             await asyncio.sleep(max(10,settings.panel_refresh_seconds))
