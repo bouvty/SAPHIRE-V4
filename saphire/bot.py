@@ -77,10 +77,16 @@ class SaphireBot(commands.Bot):
     async def on_command_error(self,ctx,error):
         if isinstance(error,commands.CommandNotFound): return
         logging.error("Command failed: %r",error)
-        await ctx.send(embed=discord.Embed(description="Unable to run that command.",color=EMBED_COLOR))
+        await ctx.send(embed=self.make_embed("Saphire Error", "Unable to run that command."))
+
+    def make_embed(self, author_name, description=None):
+        embed = discord.Embed(description=description, color=EMBED_COLOR)
+        avatar = self.user.display_avatar.url if self.user else None
+        embed.set_author(name=author_name, icon_url=avatar)
+        return embed
 
     def make_stock_embed(self,row):
-        embed=discord.Embed(title="Saphire • Discord Member Stock",color=EMBED_COLOR)
+        embed=self.make_embed("Saphire Stock Panel")
         if not row or not row["updated_at"]:
             embed.description="Waiting for the first stock sync."
         else:
@@ -95,7 +101,7 @@ class SaphireBot(commands.Bot):
         return embed
 
     async def help_command(self,ctx):
-        embed=discord.Embed(title="Saphire • Commands",color=EMBED_COLOR)
+        embed=self.make_embed("Saphire Help Panel")
         for command in sorted(self.commands,key=lambda x:x.name):
             if not command.hidden:
                 embed.add_field(name=settings.discord_prefix+command.name,value=command.help or "No description",inline=False)
@@ -104,7 +110,7 @@ class SaphireBot(commands.Bot):
     async def stock_command(self,ctx,action:str=""):
         if action.lower()=="panel":
             if not ctx.guild or not ctx.author.guild_permissions.manage_guild:
-                await ctx.send(embed=discord.Embed(description="Manage Server permission required.",color=EMBED_COLOR))
+                await ctx.send(embed=self.make_embed("Saphire Permissions", "Manage Server permission required."))
                 return
             msg=await ctx.send(embed=self.make_stock_embed(await self.stock.get()),view=StockView(self))
             self.panels[msg.id] = msg.channel.id
@@ -113,7 +119,7 @@ class SaphireBot(commands.Bot):
         elif not action:
             await ctx.send(embed=self.make_stock_embed(await self.stock.get()),view=StockView(self))
         else:
-            await ctx.send(embed=discord.Embed(description="Use ;stock panel",color=EMBED_COLOR))
+            await ctx.send(embed=self.make_embed("Saphire Stock Panel", "Use ;stock panel"))
 
     async def update_panels(self):
         await self.wait_until_ready()
