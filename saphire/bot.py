@@ -73,8 +73,8 @@ class SaphireBot(commands.Bot):
         updated=row["updated_at"] if row else None
         next_dt=updated+timedelta(seconds=settings.stock_refresh_seconds) if updated else None
         remaining=(next_dt-datetime.now(timezone.utc)).total_seconds() if next_dt else 0
-        embed.add_field(name="Last updated",value=relative_stamp(updated),inline=True)
-        embed.add_field(name="Next refresh",value=countdown(remaining) if next_dt else "Pending",inline=True)
+        embed.add_field(name="Last updated",value=(f"<t:{int(updated.timestamp())}:R> • <t:{int(updated.timestamp())}:T>" if updated else "Pending"),inline=True)
+        embed.add_field(name="Next refresh",value=(f"<t:{int(next_dt.timestamp())}:R> • <t:{int(next_dt.timestamp())}:T>" if next_dt else "Pending"),inline=True)
         embed.set_footer(text="Saphire • Auto-updating stock")
         return embed
 
