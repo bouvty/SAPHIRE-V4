@@ -38,6 +38,12 @@ class SaphireBot(commands.Bot):
         self.panels={}
         self.panel_task=None
         self.banner_printed=False
+        async def run_help(ctx):
+            await self.help_command(ctx)
+        async def run_stock(ctx, action: str = ""):
+            await self.stock_command(ctx, action)
+        self.command(name="help", help="Automatically list all available commands")(run_help)
+        self.command(name="stock", help="Display stock; use ;stock panel to post an auto-updating panel")(run_stock)
 
     async def setup_hook(self):
         self.add_view(StockView(self))
@@ -72,7 +78,6 @@ class SaphireBot(commands.Bot):
         embed.set_footer(text="Saphire • Auto-updating stock")
         return embed
 
-    @commands.command(name="help",help="Automatically list all available commands")
     async def help_command(self,ctx):
         embed=discord.Embed(title="Saphire • Commands",color=EMBED_COLOR)
         for command in sorted(self.commands,key=lambda x:x.name):
@@ -80,7 +85,6 @@ class SaphireBot(commands.Bot):
                 embed.add_field(name=settings.discord_prefix+command.name,value=command.help or "No description",inline=False)
         await ctx.send(embed=embed)
 
-    @commands.command(name="stock",help="Display stock; use ;stock panel to post an auto-updating panel")
     async def stock_command(self,ctx,action:str=""):
         if action.lower()=="panel":
             if not ctx.guild or not ctx.author.guild_permissions.manage_guild:
