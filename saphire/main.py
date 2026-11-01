@@ -32,6 +32,7 @@ async def lifespan(app):
         await store.close()
 
 app=FastAPI(title="Saphire V4 Public API",lifespan=lifespan)
+@app.get("/v4/health")
 @app.get("/v4/")
 @app.get("/v4")
 @app.get("/v4/api")
