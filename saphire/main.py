@@ -32,9 +32,11 @@ async def lifespan(app):
         await store.close()
 
 app=FastAPI(title="Saphire V4 Public API",lifespan=lifespan)
+@app.get("/v4/api")
 @app.get("/v4/api/health")
 async def health():
     return {"success":True,"service":"saphire-v4"}
+@app.get("/v4/api/stock/members")
 @app.get("/v4/api/members/stock")
 async def stock(response:Response):
     response.headers["Cache-Control"]="public, max-age=10"
